@@ -9,6 +9,7 @@
 - [Контракты 1.0](docs/CONTRACTS.md) и [JSON Schema](schemas/).
 - [Примеры данных](examples/) и [результаты проверки монтажёра](docs/evidence/planner/README.md).
 - [Инструкции по модулям](blocks/).
+- [Skill для ADR](.agents/skills/cutcraft-adr/SKILL.md) и [skill для контрактов](.agents/skills/cutcraft-contracts/SKILL.md).
 
 ## Установка
 
