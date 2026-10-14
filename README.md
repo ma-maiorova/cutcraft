@@ -5,6 +5,7 @@
 ## Документация
 
 - [Project proposal](docs/PROJECT_PROPOSAL.md) — проблема, MVP, архитектура и результаты.
+- [Архитектурные решения (ADR)](docs/adr/README.md).
 - [Контракты 1.0](docs/CONTRACTS.md) и [JSON Schema](schemas/).
 - [Примеры данных](examples/) и [результаты проверки монтажёра](docs/evidence/planner/README.md).
 - [Инструкции по модулям](blocks/).
