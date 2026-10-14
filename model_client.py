@@ -86,12 +86,14 @@ def check_free_model(models, model, *, vision=False):
     return found
 
 
-def chat_json(system, payload, *, model_env="TEXT_MODEL_NAME", vision=False):
+def chat_json(system, payload, *, model_env="TEXT_MODEL_NAME", vision=False, schema=None):
     key, model, timeout = settings(model_env)
     metadata = request_json("/models", key, timeout)
     found = check_free_model(metadata.get("data", []), model, vision=vision)
     body = {"model": model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}], "max_tokens": 2200, "temperature": 0.2}
-    if "response_format" in found.get("supported_parameters", []):
+    if schema is not None and "structured_outputs" in found.get("supported_parameters", []):
+        body["response_format"] = {"type": "json_schema", "json_schema": {"name": "cutcraft_plan", "strict": True, "schema": schema}}
+    elif "response_format" in found.get("supported_parameters", []):
         body["response_format"] = {"type": "json_object"}
     response = request_json("/chat/completions", key, timeout, body)
     if response.get("error"):

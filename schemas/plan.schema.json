@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CutCraft plan 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scene_id",
+          "segment_id",
+          "source_start",
+          "source_end",
+          "caption",
+          "source_quote",
+          "selection_reason"
+        ],
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "segment_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_start": {
+            "type": "number",
+            "minimum": 0
+          },
+          "source_end": {
+            "type": "number",
+            "minimum": 0
+          },
+          "caption": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_quote": {
+            "type": "string",
+            "minLength": 1
+          },
+          "selection_reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

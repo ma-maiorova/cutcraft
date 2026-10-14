@@ -8,6 +8,9 @@ def require(condition, message):
     if not condition:
         raise ContractError(message)
 
+def exact_fields(value, names):
+    require(isinstance(value, dict) and set(value) == set(names), "Поля объекта не соответствуют контракту 1.0")
+
 def number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
@@ -16,11 +19,13 @@ def validate_catalog(catalog):
     require(catalog.get("schema_version") == "1.0", "Нужна schema_version 1.0")
     require(number(catalog.get("source_duration")) and catalog["source_duration"] > 0, "Неверная длина источника")
     require(isinstance(catalog.get("assets_are_real"), bool), "Укажите assets_are_real")
+    exact_fields(catalog, ("schema_version", "source_duration", "assets_are_real", "segments"))
     segments = catalog.get("segments")
     require(isinstance(segments, list) and len(segments) >= 3, "Нужно минимум 3 сегмента")
     ids = set()
     for s in segments:
         require(isinstance(s, dict), "Сегмент должен быть объектом")
+        exact_fields(s, ("segment_id", "start", "end", "transcript", "frame_paths"))
         ident = s.get("segment_id")
         require(isinstance(ident, str) and ident and ident not in ids, "Пустой или повторный segment_id")
         ids.add(ident)
@@ -33,16 +38,18 @@ def validate_catalog(catalog):
 def validate_plan(plan, catalog):
     validate_catalog(catalog)
     require(isinstance(plan, dict) and plan.get("schema_version") == "1.0", "Неверная версия плана")
+    exact_fields(plan, ("schema_version", "scenes"))
     scenes = plan.get("scenes")
     require(isinstance(scenes, list) and len(scenes) == 3, "В упрощённом MVP ровно 3 сцены")
     lookup = {s["segment_id"]: s for s in catalog["segments"]}
     ids, used, total = set(), set(), 0
     for s in scenes:
         require(isinstance(s, dict), "Сцена должна быть объектом")
+        exact_fields(s, ("scene_id", "segment_id", "source_start", "source_end", "caption", "source_quote", "selection_reason"))
         ident = s.get("scene_id")
         require(isinstance(ident, str) and ident and ident not in ids, "Повторный/пустой scene_id")
         ids.add(ident)
-        require(s.get("segment_id") in lookup, "Выбран несуществующий segment_id")
+        require(isinstance(s.get("segment_id"), str) and s["segment_id"] in lookup, "Выбран несуществующий segment_id")
         require(s["segment_id"] not in used, "Повтор одного сегмента")
         used.add(s["segment_id"])
         source = lookup[s["segment_id"]]
@@ -57,19 +64,40 @@ def validate_plan(plan, catalog):
 
 def validate_review(review, plan):
     require(isinstance(review, dict) and review.get("schema_version") == "1.0", "Неверная версия review")
+    exact_fields(review, ("schema_version", "items"))
     items = review.get("items")
     require(isinstance(items, list), "Нужен список items")
     expected = {s["scene_id"] for s in plan["scenes"]}
     ids = set()
     for item in items:
-        require(isinstance(item, dict), "Замечание должно быть объектом")
-        require(item.get("scene_id") in expected and item["scene_id"] not in ids, "Неизвестная или повторная сцена review")
+        exact_fields(item, ("scene_id", "decision", "issue", "evidence", "requested_change"))
+        require(isinstance(item.get("scene_id"), str) and item["scene_id"] in expected and item["scene_id"] not in ids, "Неизвестная или повторная сцена review")
         ids.add(item["scene_id"])
         decision = item.get("decision")
-        require(decision in ("accept", "revise_caption", "replace_segment", "adjust_bounds", "needs_human_review"), "Неизвестное решение")
+        require(isinstance(decision, str) and decision in ("accept", "revise_caption", "replace_segment", "adjust_bounds", "needs_human_review"), "Неизвестное решение")
         for key in ("issue", "evidence", "requested_change"):
             require(isinstance(item.get(key), str), f"Нужно строковое поле {key}")
             if decision != "accept":
                 require(item[key].strip(), f"Для замечания нужно непустое {key}")
     require(ids == expected, "Проверяющий должен оценить каждую сцену")
     return review
+
+
+def validate_task(task):
+    require(isinstance(task, str) and task.strip(), "Нужно непустое текстовое задание")
+    require(len(task) <= 4000, "Задание длиннее 4000 символов")
+    return task
+
+
+def validate_revision(before, after, review, catalog):
+    validate_plan(before, catalog)
+    validate_review(review, before)
+    validate_plan(after, catalog)
+    require(not any(i["decision"] == "needs_human_review" for i in review["items"]), "Нужна ручная проверка, а не автоматическая доработка")
+    original = {s["scene_id"]: s for s in before["scenes"]}
+    updated = {s["scene_id"]: s for s in after["scenes"]}
+    require(set(original) == set(updated), "При исправлении изменены идентификаторы сцен")
+    for item in review["items"]:
+        if item["decision"] == "accept":
+            require(original[item["scene_id"]] == updated[item["scene_id"]], "Модель изменила принятую сцену")
+    return after

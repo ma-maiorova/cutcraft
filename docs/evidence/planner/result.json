@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "utc": "2026-10-14T23:35:53.557580+00:00",
+  "seconds": 37.83,
+  "dataset": "examples/catalog.json (synthetic, assets_are_real=false)",
+  "review_origin": "controlled manual fixture, not reviewer agent",
+  "accepted_scenes_preserved": true,
+  "model_calls": 2
+}

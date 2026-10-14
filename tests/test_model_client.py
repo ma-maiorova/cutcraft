@@ -42,6 +42,16 @@ class ModelClientTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build_plan("test", c)
 
+    def test_strict_schema_sent_when_supported(self):
+        model = {"id":"test:free","pricing":{"prompt":"0","completion":"0"},"supported_parameters":["structured_outputs"]}
+        with patch("model_client.settings", return_value=("example","test:free",10)), patch("model_client.request_json", side_effect=[{"data":[model]}, {"choices":[{"finish_reason":"stop","message":{"content":'{"schema_version":"1.0"}'}}]}]) as request:
+            schema={"type":"object","properties":{},"additionalProperties":False}
+            self.assertEqual(chat_json("system", {}, schema=schema)["schema_version"], "1.0")
+            body=request.call_args.args[3]
+            self.assertEqual(body["response_format"]["type"],"json_schema")
+            self.assertTrue(body["response_format"]["json_schema"]["strict"])
+            self.assertNotIn("models",body)  # Нет списка fallback-моделей.
+
     def test_no_completion_for_nonfree_metadata(self):
         with patch("model_client.settings", return_value=("example", "test:free", 10)), patch("model_client.request_json", return_value={"data":[]}) as request:
             with self.assertRaises(ModelError):
