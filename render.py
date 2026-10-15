@@ -23,7 +23,7 @@ STEPS = [("input", None, "Вход и каталог"), ("plan", 0, "Монта�
          ("revise", 1, "Монтажёр исправляет замечания"), ("revision_check", 1, "Проверка исправления кодом"),
          ("review", 1, "Повторная проверка"), ("finish", None, "Результат")]
 STEP_ACTORS = {"input": "code", "plan": "planner", "plan_check": "code", "review": "reviewer",
-               "revise": "planner", "revision_check": "code", "finish": "code"}
+               "revise": "planner", "revision_check": "code", "finish": "code", "controlled_defect": "code"}
 # Где лежали каталоги до появления catalog_path; последний — снимок, на котором записаны прогоны docs/evidence/real_video.
 CATALOG_GUESSES = ("data/catalog.json", "examples/catalog.json", "docs/evidence/real_video/catalog_1a8be59/catalog.json")
 STEP_OUTPUTS = {("input", None): ["input.json"], ("plan_check", 0): ["plan_0.json"], ("review", 0): ["review_0.json"],
@@ -96,6 +96,8 @@ def summary(stage, iteration, files):
         if not catalog:
             return "Задание и путь к каталогу", "нет данных"
         return "Задание и каталог видео", f"{len(catalog['segments'])} фрагментов, источник {catalog['source_duration']} с"
+    if stage == "controlled_defect":
+        return "План реального монтажёра", "Код заменил первую подпись на заведомо неверную; оригинал в plan_generated.json"
     if stage == "plan":
         return "Задание и весь каталог: таймкоды и транскрипт, без кадров", scenes_line(plan)
     if stage == "plan_check":
@@ -152,7 +154,10 @@ def render_steps(events, files, demo=False):
     # и если отчёт не построился, следом идёт finish/error.
     by_key = {(event["stage"], event.get("iteration")): event for event in events}
     rows = []
-    for stage, iteration, title in STEPS:
+    steps = list(STEPS)
+    if (files["input"] or {}).get("controlled_defect"):
+        steps.insert(3, ("controlled_defect", 0, "Контрольный дефект: внесён кодом для демо"))
+    for stage, iteration, title in steps:
         event = by_key.get((stage, iteration))
         state = event["state"] if event else None
         given, result = summary(stage, iteration, files)
@@ -260,7 +265,7 @@ def render_outcome(files, events):
 
 def render_report(run_dir, frames=None, path=None):
     run_dir = Path(run_dir)
-    names = ("input", "status", "events", "plan_0", "review_0", "plan_1", "review_1")
+    names = ("input", "status", "events", "plan_0", "review_0", "plan_1", "review_1", "plan_generated", "controlled_defect")
     files = {n: load(run_dir, f"{n}.json") for n in names}
     data = files["input"] or {}
     catalog = data.get("catalog")
@@ -270,6 +275,8 @@ def render_report(run_dir, frames=None, path=None):
     status = (files["status"] or {}).get("status")
     demo = data.get("mode", (files["status"] or {}).get("mode")) == "demo"
     notes = []
+    if data.get("controlled_defect"):
+        notes.append("КОНТРОЛЬНЫЙ ДЕФЕКТ: первую подпись намеренно испортил код после ответа монтажёра. Это не естественная ошибка модели. Критик и исправление работают через реальный API; обнаружение не гарантируется.")
     if demo:
         notes.append("ДЕМО: ответы монтажёра и проверяющего зашиты в код, ошибка в заголовке внесена специально. LLM не вызывались, это показ цикла, а не работы моделей.")
     elif data.get("mode") == "live":

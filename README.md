@@ -199,7 +199,7 @@ python3 -m unittest discover -s tests -v
 python3 main.py --demo
 ```
 
-Проходят 54 теста, включая демо на реальном каталоге. Перед PR используйте [skill проверки](.agents/skills/cutcraft-pr-preflight/SKILL.md): в Codex он вызывается как `$cutcraft-pr-preflight`, другому агенту SKILL.md нужно открыть явно.
+Проходят 56 тестов, включая демо на реальном каталоге. Перед PR используйте [skill проверки](.agents/skills/cutcraft-pr-preflight/SKILL.md): в Codex он вызывается как `$cutcraft-pr-preflight`, другому агенту SKILL.md нужно открыть явно.
 
 ## Команда
 
@@ -219,3 +219,5 @@ python3 main.py --demo
 ## Показ проекта
 
 [Команды и порядок показа UI](docs/DEMO_GUIDE.md). Подготовить сохранённые реальные отчёты без API: `python3 scripts/demo.py`. Новый запуск с резервными отчётами: `python3 scripts/demo.py --live`; техническое демо без моделей: `python3 scripts/demo.py --demo`.
+
+Для свежего теста исправления: `python scripts/demo.py --live --controlled-defect`. Код явно вносит неверную подпись после ответа монтажёра; все LLM-решения остаются реальными. [Команда для Docker и ограничения](docs/DEMO_GUIDE.md#свежий-api-прогон-с-контрольной-ошибкой).

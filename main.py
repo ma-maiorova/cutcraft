@@ -1,5 +1,6 @@
 """Оркестратор: один раунд исправления, явные статусы, версии, журнал событий и HTML."""
 import argparse
+import copy
 import json
 import os
 import sys
@@ -73,7 +74,9 @@ def models(demo):
     return {"planner": os.environ.get("TEXT_MODEL_NAME", ""), "reviewer": os.environ.get("VISION_MODEL_NAME", "")}
 
 
-def run(task, catalog_path, out, demo=False):
+def run(task, catalog_path, out, demo=False, *, controlled_defect=False):
+    if controlled_defect and demo:
+        raise ValueError("Контрольный дефект доступен только для реальных API-вызовов")
     out.mkdir(parents=True, exist_ok=False)
     started = time.monotonic()
     mode = "demo" if demo else "live"
@@ -85,12 +88,25 @@ def run(task, catalog_path, out, demo=False):
                 where = str(catalog_path.relative_to(ROOT))
             except ValueError:
                 where = str(catalog_path)
-            save(out / "input.json", {"task": task, "catalog": catalog, "mode": mode, "catalog_path": where, "models": models(demo)})
+            save(out / "input.json", {"task": task, "catalog": catalog, "mode": mode, "catalog_path": where, "models": models(demo), "controlled_defect": controlled_defect})
             return catalog, resolve_frames(catalog, catalog_path.parent)
         catalog, frames = journal.step("input", "code", load_input, outputs=["input.json"])
         draft = journal.step("plan", "planner", lambda: build_plan(task, catalog, demo=demo), iteration=0, inputs=["input.json"])
         plan = journal.step("plan_check", "code", lambda: save(out / "plan_0.json", validate_plan(draft, catalog)),
                             iteration=0, outputs=["plan_0.json"])
+        if controlled_defect:
+            save(out / "plan_generated.json", copy.deepcopy(plan))
+            def inject():
+                damaged = copy.deepcopy(plan)
+                scene = damaged["scenes"][0]
+                original = scene["caption"]
+                scene["caption"] = "Большой взрыв произошёл вчера в Москве"
+                save(out / "controlled_defect.json", {
+                    "scene_id": scene["scene_id"], "field": "caption", "before": original,
+                    "after": scene["caption"], "origin": "injected_by_code_for_demo"})
+                return save(out / "plan_0.json", validate_plan(damaged, catalog))
+            plan = journal.step("controlled_defect", "code", inject, iteration=0,
+                                inputs=["plan_generated.json"], outputs=["controlled_defect.json", "plan_0.json"])
         status = "needs_human_review"
         previous = None  # Прошлый раунд: принятые и не изменённые сцены критик не перепроверяет.
         for iteration in range(2):  # первоначальная проверка + одна доработка

@@ -48,9 +48,12 @@ def main(argv=None):
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--live", action="store_true", help="Реальный запуск: 2–4 API-запроса")
     modes.add_argument("--demo", action="store_true", help="Фиксированные ответы, без API")
+    parser.add_argument("--controlled-defect", action="store_true", help="С --live: испортить одну подпись кодом, явно пометив тест")
     parser.add_argument("--catalog", type=Path, default=ROOT / "data/catalog.json")
     parser.add_argument("--task", default=TASK)
     args = parser.parse_args(argv)
+    if args.controlled_defect and not args.live:
+        parser.error("--controlled-defect требует --live")
     out = ROOT / "output" / ("presentation-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
     try:
         saved = prepare_saved(out)
@@ -70,7 +73,11 @@ def main(argv=None):
         print(f"Вход проверен: {count} фрагментов, {frames} кадров.", flush=True)
         print("LIVE: до 4 основных запросов, без повторов." if args.live else
               "ДЕМО: фиксированные ответы, не проверка моделей.", flush=True)
-        status = run(args.task, args.catalog.resolve(), current, demo=args.demo)
+        if args.controlled_defect:
+            print("КОНТРОЛЬНЫЙ ДЕФЕКТ: код испортит первую подпись после ответа модели; реальные API-вызовы.", flush=True)
+            status = run(args.task, args.catalog.resolve(), current, controlled_defect=True)
+        else:
+            status = run(args.task, args.catalog.resolve(), current, demo=args.demo)
     except Exception as exc:
         # Do not echo arbitrary exception text or credentials in a presentation console.
         print(f"НОВЫЙ запуск не завершён ({type(exc).__name__}). Используйте сохранённые отчёты выше.", file=sys.stderr)
@@ -80,6 +87,13 @@ def main(argv=None):
         return 1
     print(f"НОВЫЙ запуск: {status}")
     print((current / "report.html").resolve().as_uri())
+    if args.controlled_defect:
+        defect = json.loads((current / "controlled_defect.json").read_text())
+        review = json.loads((current / "review_0.json").read_text())
+        detected = any(i["scene_id"] == defect["scene_id"] and i["decision"] != "accept" for i in review["items"])
+        print("Контрольный дефект: " + ("ОБНАРУЖЕН" if detected else "ПРОПУЩЕН критиком; тест обнаружения не пройден"))
+        if not detected:
+            return 3
     return 0 if status in ("accepted", "demo_accepted") else 2
 
 
