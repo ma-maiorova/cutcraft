@@ -101,7 +101,7 @@ def summary(stage, iteration, files):
         return "Черновик плана монтажёра", "сегменты существуют, границы, 20–30 с, дословные цитаты"
     if stage == "review":
         return ("Сцены с транскриптом своих фрагментов, неиспользованные фрагменты и кадры; обоснование монтажёра скрыто",
-                decisions_line(review))
+                decisions_line(iteration, review))
     if stage == "revise":
         return "Свой план и замечания проверяющего (plan_0.json, review_0.json)", changed_line(files)
     if stage == "revision_check":
@@ -117,12 +117,24 @@ def scenes_line(plan):
     return f"{len(plan['scenes'])} сцены, {total:.1f} с"
 
 
-def decisions_line(review):
+def review_groups(n, review):
+    """Сцены проверки n по тому, что с ними сделал оркестратор: принятые и непустые группы остальных.
+    На доработку уходят только замечания первой проверки и только если ни одну сцену не передали человеку:
+    на needs_human_review main.py останавливается, а после повторной проверки доработок больше нет."""
+    items = review["items"]
+    accepted = [i["scene_id"] for i in items if i["decision"] == "accept"]
+    human = [i["scene_id"] for i in items if i["decision"] == "needs_human_review"]
+    fix = [i["scene_id"] for i in items if i["decision"] not in ("accept", "needs_human_review")]
+    fix_label = ("замечания остались после доработки" if n == 1 else
+                 "замечания без доработки, план передан человеку" if human else "отправлены на доработку")
+    return accepted, [(label, ids) for label, ids in ((fix_label, fix), ("переданы человеку", human)) if ids]
+
+
+def decisions_line(n, review):
     if not review:
         return "нет данных"
-    sent = [i["scene_id"] for i in review["items"] if i["decision"] != "accept"]
-    accepted = len(review["items"]) - len(sent)
-    return f"принято {accepted} из {len(review['items'])}" + (f"; на доработку: {', '.join(sent)}" if sent else "")
+    accepted, others = review_groups(n, review)
+    return "; ".join([f"принято {len(accepted)} из {len(review['items'])}"] + [f"{label}: {', '.join(ids)}" for label, ids in others])
 
 
 def changed_line(files):
@@ -166,10 +178,9 @@ def render_reviews(files):
         rows = "".join(f'<tr><td>{esc(i["scene_id"])}</td><td><span class="badge {"done" if i["decision"] == "accept" else "error"}">{esc(i["decision"])}</span></td>'
                        f'<td>{esc(i["issue"]) or "—"}</td><td>{esc(i["evidence"]) or "—"}</td><td>{esc(i["requested_change"]) or "—"}</td></tr>'
                        for i in review["items"])
-        accepted = [i["scene_id"] for i in review["items"] if i["decision"] == "accept"]
-        sent = [i["scene_id"] for i in review["items"] if i["decision"] != "accept"]
-        blocks.append(f'<h3>{title} · review_{n}.json</h3><p>Приняты: {esc(", ".join(accepted) or "—")}. '
-                      f'Отправлены на доработку: {esc(", ".join(sent) or "—")}.</p>'
+        accepted, others = review_groups(n, review)
+        groups = "".join(f" {label[0].upper()}{label[1:]}: {esc(', '.join(ids))}." for label, ids in others)
+        blocks.append(f'<h3>{title} · review_{n}.json</h3><p>Приняты: {esc(", ".join(accepted) or "—")}.{groups}</p>'
                       f'<div class="scroll"><table><tr><th>Сцена</th><th>Решение</th><th>Проблема</th><th>Свидетельство</th><th>Что изменить</th></tr>{rows}</table></div>')
     return "".join(blocks) or "<p>Нет данных: проверка не сохранена.</p>"
 

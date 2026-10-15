@@ -37,7 +37,7 @@ class ReportTests(unittest.TestCase):
                                             ("revise", 1, "done"), ("revision_check", 1, "done"), ("review", 1, "done"), ("finish", None, "done")])
         page = self.html()
         for text in ("review_0.json", "review_1.json", "plan_1.json", "Было → стало", "Утеряна оговорка о симуляции",
-                     "Метод доказал эффективность", "без изменений", "ДЕМО"):
+                     "Метод доказал эффективность", "без изменений", "ДЕМО", "Отправлены на доработку: scene_2."):
             self.assertIn(text, page)
         self.assertNotIn("(LLM", page)  # в демо модели не вызываются, шаги не подписаны как LLM
 
@@ -138,6 +138,7 @@ class ReportTests(unittest.TestCase):
             review = accept_all(task, catalog, plan, frames)
             review["items"][0].update(decision="needs_human_review", issue="Кадр не про задание",
                                       evidence="На кадре заставка", requested_change="Решить человеку")
+            review["items"][1].update(decision="revise_caption", issue="Чужой факт", evidence="Цитата", requested_change="Убрать")
             return review
         with patch("main.review_plan", side_effect=to_human), patch("main.revise_plan") as revise:
             self.assertEqual(run("Объясни", CATALOG, self.out, True), "needs_human_review")
@@ -145,6 +146,10 @@ class ReportTests(unittest.TestCase):
         page = self.html()
         self.assertIn("Проверяющий сразу передал план человеку", page)
         self.assertNotIn("ограничен одной доработкой", page)
+        # Доработка не запускалась: ни одна сцена не подписана как отправленная на доработку.
+        self.assertNotIn("отправлены на доработку", page.lower())
+        self.assertIn("Замечания без доработки, план передан человеку: scene_2. Переданы человеку: scene_1.", page)
+        self.assertIn("замечания без доработки, план передан человеку: scene_2; переданы человеку: scene_1", page)
         (self.out / "events.json").unlink()  # старый запуск: причина пропуска восстанавливается по review_0
         render_report(self.out)
         self.assertIn("Проверяющий передал план человеку", self.html())
@@ -160,6 +165,8 @@ class ReportTests(unittest.TestCase):
         page = self.html()
         self.assertIn("ограничен одной доработкой", page)
         self.assertNotIn("сразу передал", page)
+        self.assertIn("Отправлены на доработку: scene_1, scene_2, scene_3.", page)
+        self.assertIn("Замечания остались после доработки: scene_1, scene_2, scene_3.", page)
 
     def test_user_text_is_escaped(self):
         run("<script>alert(1)</script>", CATALOG, self.out, True)
