@@ -1,11 +1,13 @@
-"""Оркестратор: один раунд исправления, явные статусы, версии и HTML."""
+"""Оркестратор: один раунд исправления, явные статусы, версии, журнал событий и HTML."""
 import argparse
 import json
+import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from contracts import validate_catalog, validate_plan, validate_review
+from contracts import validate_catalog, validate_plan, validate_review, validate_revision
+from model_client import load_environment
 from planner import build_plan, revise_plan
 from reviewer import review_plan
 from render import render_report
@@ -15,6 +17,7 @@ ROOT = Path(__file__).resolve().parent
 
 def save(path, obj):
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+    return obj
 
 
 def resolve_frames(catalog, base):
@@ -30,37 +33,105 @@ def resolve_frames(catalog, base):
     return result
 
 
+def safe_message(exc):
+    # Сообщения model_client не содержат ключа и заголовков; длину всё равно ограничиваем.
+    return f"{type(exc).__name__}: {exc}"[:500]
+
+
+class Journal:
+    """events.json: порядок шагов, исполнитель, состояние, артефакты. Переписывается после каждого события,
+    чтобы сбой не стирал уже полученное. Формат описан в docs/RUN_HISTORY_UI.md."""
+
+    def __init__(self, out):
+        self.path, self.events, self.failed = out / "events.json", [], False
+
+    def log(self, stage, actor, state, *, iteration=None, inputs=(), outputs=(), message=""):
+        self.events.append({"seq": len(self.events) + 1, "stage": stage, "actor": actor, "iteration": iteration,
+                            "state": state, "inputs": list(inputs), "outputs": list(outputs), "message": message})
+        save(self.path, {"schema_version": "1.0", "events": self.events})
+
+    def step(self, stage, actor, fn, **meta):
+        try:
+            result = fn()
+        except Exception as exc:
+            self.failed = True
+            self.log(stage, actor, "error", message=safe_message(exc), **meta)
+            raise
+        self.log(stage, actor, "done", **meta)
+        return result
+
+    def skip(self, iteration, reason):
+        for stage, actor in (("revise", "planner"), ("revision_check", "code"), ("review", "reviewer")):
+            self.log(stage, actor, "skipped", iteration=iteration, message=reason)
+
+
+def models(demo):
+    # Только имена моделей из .env/окружения, без ключа.
+    if demo:
+        return None
+    load_environment()
+    return {"planner": os.environ.get("TEXT_MODEL_NAME", ""), "reviewer": os.environ.get("VISION_MODEL_NAME", "")}
+
+
 def run(task, catalog_path, out, demo=False):
     out.mkdir(parents=True, exist_ok=False)
     started = time.monotonic()
-    history = []
+    mode = "demo" if demo else "live"
+    history, journal, frames = [], Journal(out), None
     try:
-        catalog = validate_catalog(json.loads(catalog_path.read_text(encoding="utf-8")))
-        frames = resolve_frames(catalog, catalog_path.parent)
-        save(out / "input.json", {"task": task, "catalog": catalog, "mode": "demo" if demo else "live"})
-        plan = validate_plan(build_plan(task, catalog, demo=demo), catalog)
+        def load_input():
+            catalog = validate_catalog(json.loads(catalog_path.read_text(encoding="utf-8")))
+            try:
+                where = str(catalog_path.relative_to(ROOT))
+            except ValueError:
+                where = str(catalog_path)
+            save(out / "input.json", {"task": task, "catalog": catalog, "mode": mode, "catalog_path": where, "models": models(demo)})
+            return catalog, resolve_frames(catalog, catalog_path.parent)
+        catalog, frames = journal.step("input", "code", load_input, outputs=["input.json"])
+        draft = journal.step("plan", "planner", lambda: build_plan(task, catalog, demo=demo), iteration=0, inputs=["input.json"])
+        plan = journal.step("plan_check", "code", lambda: save(out / "plan_0.json", validate_plan(draft, catalog)),
+                            iteration=0, outputs=["plan_0.json"])
         status = "needs_human_review"
         previous = None  # Прошлый раунд: принятые и не изменённые сцены критик не перепроверяет.
         for iteration in range(2):  # первоначальная проверка + одна доработка
-            review = validate_review(review_plan(task, catalog, plan, frames, demo=demo, previous=previous), plan)
+            review = journal.step("review", "reviewer",
+                                  lambda: save(out / f"review_{iteration}.json", validate_review(review_plan(task, catalog, plan, frames, demo=demo, previous=previous), plan)),
+                                  iteration=iteration, inputs=[f"plan_{iteration}.json"], outputs=[f"review_{iteration}.json"])
             previous = {"plan": plan, "review": review}
-            entry = {"plan": plan, "review": review}
-            history.append(entry)
-            save(out / f"plan_{iteration}.json", plan)
-            save(out / f"review_{iteration}.json", review)
+            history.append({"plan": plan, "review": review})
+            save(out / "history.json", history)
             decisions = {i["decision"] for i in review["items"]}
             if decisions == {"accept"}:
                 status = "demo_accepted" if demo else "accepted"
+                if iteration == 0:
+                    journal.skip(1, "Все сцены приняты с первой проверки")
                 break
-            if "needs_human_review" in decisions or iteration == 1:
+            if "needs_human_review" in decisions:
+                if iteration == 0:
+                    journal.skip(1, "Проверяющий передал план человеку")
                 break
-            plan = validate_plan(revise_plan(task, catalog, plan, review, demo=demo), catalog)
+            if iteration == 1:
+                break
+            before = plan
+            draft = journal.step("revise", "planner", lambda: revise_plan(task, catalog, before, review, demo=demo),
+                                 iteration=1, inputs=["plan_0.json", "review_0.json"])
+            plan = journal.step("revision_check", "code",
+                                lambda: save(out / "plan_1.json", validate_revision(before, validate_plan(draft, catalog), review, catalog)),
+                                iteration=1, outputs=["plan_1.json"])
         save(out / "history.json", history)
-        render_report(out / "report.html", task, catalog, history, status, frames, demo)
-        save(out / "status.json", {"status": status, "mode": "demo" if demo else "live", "seconds": round(time.monotonic()-started, 2), "revisions": len(history)-1})
+        save(out / "status.json", {"status": status, "mode": mode, "seconds": round(time.monotonic()-started, 2), "revisions": len(history)-1})
+        journal.log("finish", "code", "done", outputs=["history.json", "status.json", "report.html"], message=status)
+        render_report(out, frames)
         return status
     except Exception as exc:
-        save(out / "status.json", {"status": "failed", "error_type": type(exc).__name__, "message": str(exc), "seconds": round(time.monotonic()-started, 2)})
+        save(out / "history.json", history)
+        save(out / "status.json", {"status": "failed", "mode": mode, "error_type": type(exc).__name__, "message": str(exc), "seconds": round(time.monotonic()-started, 2)})
+        if not journal.failed:
+            journal.log("finish", "code", "error", message=safe_message(exc))
+        try:
+            render_report(out, frames)  # Частичный отчёт: показать то, что успели сохранить.
+        except Exception as render_exc:
+            print(f"Частичный отчёт не построен: {safe_message(render_exc)}", file=sys.stderr)
         raise
 
 
