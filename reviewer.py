@@ -49,8 +49,10 @@ def review_payload(task, catalog, plan, carried=()):
     carried — уже принятые и не изменённые сцены: передаются только для контекста связности."""
     lookup = {s["segment_id"]: s for s in catalog["segments"]}
     def describe(scene):
+        # selection_reason — аргументы монтажёра: критик проверяет по источнику, а не соглашается с ними.
         segment = lookup[scene["segment_id"]]
-        return {**scene, "segment_transcript": segment["transcript"],
+        visible = {k: v for k, v in scene.items() if k != "selection_reason"}
+        return {**visible, "segment_transcript": segment["transcript"],
                 "segment_bounds": [segment["start"], segment["end"]],
                 "scene_duration": round(scene["source_end"] - scene["source_start"], 3)}
     scenes = [describe(s) for s in plan["scenes"] if s["scene_id"] not in carried]
