@@ -1,0 +1,52 @@
+{
+  "model": "dots-studio/dots-3-note-preview:free",
+  "date": "2026-10-15",
+  "dataset": "docs/evidence/reviewer/cases (synthetic PNG illustrations, assets_are_real=false)",
+  "plans_origin": "hand-written control plans, not planner agent",
+  "model_calls": 3,
+  "note": "Та же модель, что у монтажёра: независимость критика ограничена. nvidia/nemotron-3.5-super-vl:free — таймаут, google/gemma-4-31b-it:free и gemma-4-26b-a4b-it:free — 429 upstream в тот же вечер.",
+  "results": [
+    {
+      "case": "lost_caveat",
+      "decisions": {
+        "scene_1": "revise_caption",
+        "scene_2": "accept",
+        "scene_3": "accept"
+      },
+      "misses": [],
+      "false_rejects": [],
+      "other_decision": [],
+      "passed": true,
+      "seconds": 84.15,
+      "utc": "2026-10-15T15:43:58.169684+00:00"
+    },
+    {
+      "case": "correct",
+      "decisions": {
+        "scene_1": "accept",
+        "scene_2": "accept",
+        "scene_3": "accept"
+      },
+      "misses": [],
+      "false_rejects": [],
+      "other_decision": [],
+      "passed": true,
+      "seconds": 70.76,
+      "utc": "2026-10-15T15:46:35.490211+00:00"
+    },
+    {
+      "case": "wrong_frame",
+      "decisions": {
+        "scene_1": "replace_segment",
+        "scene_2": "accept",
+        "scene_3": "accept"
+      },
+      "misses": [],
+      "false_rejects": [],
+      "other_decision": [],
+      "passed": true,
+      "seconds": 89.44,
+      "utc": "2026-10-15T15:48:38.633703+00:00"
+    }
+  ]
+}

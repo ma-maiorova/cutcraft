@@ -1,0 +1,82 @@
+{
+  "model": "dots-studio/dots-3-note-preview:free",
+  "utc": "2026-10-15T16:35:07.683229+00:00",
+  "dataset": "docs/evidence/reviewer/cases (synthetic PNG illustrations, assets_are_real=false)",
+  "plans_origin": "hand-written control plans, not planner agent",
+  "model_calls": 1,
+  "results": [
+    {
+      "case": "correct",
+      "passed": false,
+      "error_type": "ModelError",
+      "message": "Ответ модели обрезан лимитом max_tokens=8000 (рассуждения: 9412 токенов, текст ответа: 0 символов); результат не принят",
+      "usage": {
+        "prompt_tokens": 2624,
+        "completion_tokens": 8000,
+        "total_tokens": 10624,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 9412,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "seconds": 105.23
+    },
+    {
+      "case": "lost_caveat",
+      "decisions": {
+        "scene_1": "revise_caption",
+        "scene_2": "accept",
+        "scene_3": "accept"
+      },
+      "misses": [],
+      "false_rejects": [],
+      "other_decision": [],
+      "passed": true,
+      "seconds": 82.29
+    },
+    {
+      "case": "wrong_frame",
+      "passed": false,
+      "error_type": "ModelError",
+      "message": "Ответ модели обрезан лимитом max_tokens=8000 (рассуждения: 9209 токенов, текст ответа: 0 символов); результат не принят",
+      "usage": {
+        "prompt_tokens": 2626,
+        "completion_tokens": 8000,
+        "total_tokens": 10626,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 9209,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "seconds": 103.73
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "status": "needs_human_review",
+  "text_model": "dots-studio/dots-3-note-preview:free",
+  "vision_model": "dots-studio/dots-3-note-preview:free",
+  "utc": "2026-10-15T16:25:15.497115+00:00",
+  "seconds": 185.47,
+  "model_calls": 3,
+  "steps": [
+    {
+      "step": "критик проверяет план с дефектом",
+      "seconds": 75.2
+    },
+    {
+      "step": "монтажёр исправляет по замечаниям",
+      "seconds": 12.05
+    },
+    {
+      "step": "критик проверяет исправленный план",
+      "seconds": 98.22
+    }
+  ],
+  "start_plan": "docs/evidence/reviewer/cases/plan_lost_caveat.json (controlled defect)"
+}

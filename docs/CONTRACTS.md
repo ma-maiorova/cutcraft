@@ -6,6 +6,7 @@
 - `assets_are_real`: boolean; false для условных карточек
 - `segments`: объекты с уникальным `segment_id`, числовыми start/end, transcript, непустым frame_paths.
 - Пути кадров относительны файлу каталога, не могут выходить из его папки.
+- Для реального критика кадры — PNG, JPEG или WebP до 4 МБ (сигнатура совпадает с расширением), не больше 12 кадров на три сцены. SVG допустим только в демо. Форма каталога 1.0 не меняется; ограничение проверяет `reviewer.py` до API ([ADR-0004](adr/0004-multimodal-reviewer.md)).
 
 ## План (`examples/plan.json`)
 - `schema_version`: "1.0"
@@ -25,10 +26,10 @@
 ```python
 build_plan(task, catalog, *, demo=False) -> dict
 revise_plan(task, catalog, plan, review, *, demo=False) -> dict
-review_plan(task, catalog, plan, frames, *, demo=False) -> dict
+review_plan(task, catalog, plan, frames, *, demo=False, previous=None) -> dict
 ```
 
-`frames` — словарь `путь из каталога -> pathlib.Path`. Реальный адаптер reviewer сам читает картинки для API. Передача локального пути в prompt не передаёт картинку модели.
+`frames` — словарь `путь из каталога -> pathlib.Path`. Реальный адаптер reviewer сам читает картинки и передаёт их модели как base64 `image_url`. `previous` — необязательный прошлый раунд `{"plan", "review"}`: сцены, принятые в нём и не изменённые, сохраняют accept без повторного запроса. Передача локального пути в prompt не передаёт картинку модели.
 Агенты возвращают данные, не записывают output. Состоянием и выводом управляет main.py.
 
 Пример review содержит намеренное замечание к подписи первого плана. После исправления проверяющий должен принять исправленную сцену или привести новую конкретную причину отказа.

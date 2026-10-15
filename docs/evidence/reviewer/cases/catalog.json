@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "source_duration": 120,
+  "assets_are_real": false,
+  "segments": [
+    {
+      "segment_id": "s1",
+      "start": 0,
+      "end": 8,
+      "transcript": "Исследователи предложили новый способ сравнения методов.",
+      "frame_paths": [
+        "frames/s1.png"
+      ]
+    },
+    {
+      "segment_id": "s2",
+      "start": 12,
+      "end": 20,
+      "transcript": "Метод пока проверили только на симуляции.",
+      "frame_paths": [
+        "frames/s2.png"
+      ]
+    },
+    {
+      "segment_id": "s3",
+      "start": 24,
+      "end": 32,
+      "transcript": "Для проверки в реальных условиях нужны новые эксперименты.",
+      "frame_paths": [
+        "frames/s3.png"
+      ]
+    },
+    {
+      "segment_id": "s4",
+      "start": 36,
+      "end": 44,
+      "transcript": "В эксперименте сравнили два подхода на одинаковых данных.",
+      "frame_paths": [
+        "frames/s4.png"
+      ]
+    },
+    {
+      "segment_id": "s5",
+      "start": 48,
+      "end": 56,
+      "transcript": "Авторы описали ограничения и возможные источники ошибок.",
+      "frame_paths": [
+        "frames/s5.png"
+      ]
+    },
+    {
+      "segment_id": "s6",
+      "start": 60,
+      "end": 68,
+      "transcript": "Следующий этап — независимое воспроизведение результатов.",
+      "frame_paths": [
+        "frames/s6.png"
+      ]
+    }
+  ]
+}

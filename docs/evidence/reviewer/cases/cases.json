@@ -1,0 +1,58 @@
+{
+  "task": "Объясни результат и его ограничения",
+  "cases": [
+    {
+      "name": "correct",
+      "catalog": "catalog.json",
+      "plan": "plan_correct.json",
+      "expected": {
+        "scene_1": [
+          "accept"
+        ],
+        "scene_2": [
+          "accept"
+        ],
+        "scene_3": [
+          "accept"
+        ]
+      },
+      "about": "Подписи верны источнику, кадры соответствуют сценам: замечаний быть не должно"
+    },
+    {
+      "name": "lost_caveat",
+      "catalog": "catalog.json",
+      "plan": "plan_lost_caveat.json",
+      "expected": {
+        "scene_1": [
+          "revise_caption",
+          "needs_human_review"
+        ],
+        "scene_2": [
+          "accept"
+        ],
+        "scene_3": [
+          "accept"
+        ]
+      },
+      "about": "Подпись scene_1 потеряла оговорку «только на симуляции» и добавила «в реальных условиях»"
+    },
+    {
+      "name": "wrong_frame",
+      "catalog": "catalog_wrong_frame.json",
+      "plan": "plan_correct.json",
+      "expected": {
+        "scene_1": [
+          "replace_segment",
+          "needs_human_review"
+        ],
+        "scene_2": [
+          "accept"
+        ],
+        "scene_3": [
+          "accept"
+        ]
+      },
+      "about": "Кадр сегмента s2 (scene_1) — посторонняя реклама пляжного отдыха, а не симуляция"
+    }
+  ]
+}

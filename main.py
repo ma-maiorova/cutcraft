@@ -40,8 +40,10 @@ def run(task, catalog_path, out, demo=False):
         save(out / "input.json", {"task": task, "catalog": catalog, "mode": "demo" if demo else "live"})
         plan = validate_plan(build_plan(task, catalog, demo=demo), catalog)
         status = "needs_human_review"
+        previous = None  # Прошлый раунд: принятые и не изменённые сцены критик не перепроверяет.
         for iteration in range(2):  # первоначальная проверка + одна доработка
-            review = validate_review(review_plan(task, catalog, plan, frames, demo=demo), plan)
+            review = validate_review(review_plan(task, catalog, plan, frames, demo=demo, previous=previous), plan)
+            previous = {"plan": plan, "review": review}
             entry = {"plan": plan, "review": review}
             history.append(entry)
             save(out / f"plan_{iteration}.json", plan)

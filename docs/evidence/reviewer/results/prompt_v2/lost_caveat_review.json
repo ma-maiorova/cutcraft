@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "decision": "revise_caption",
+      "evidence": "segment_transcript: «Метод пока проверили только на симуляции.». На кадре надпись «Симуляция» и монитор с текстом «SIMULATION RUN #42», что прямо указывает на симуляцию, а не на реальные условия. Под caption утверждается обратное, что является грубым искажением ограничения.",
+      "issue": "Подпись утверждает эффективность метода в реальных условиях, в то время как источник явно оговаривает, что проверяли только в симуляции.",
+      "requested_change": "Заменить caption на: \"Метод пока проверили только на симуляции.\"",
+      "scene_id": "scene_1"
+    },
+    {
+      "decision": "accept",
+      "evidence": "",
+      "issue": "",
+      "requested_change": "",
+      "scene_id": "scene_2"
+    },
+    {
+      "decision": "accept",
+      "evidence": "",
+      "issue": "",
+      "requested_change": "",
+      "scene_id": "scene_3"
+    }
+  ],
+  "schema_version": "1.0"
+}
