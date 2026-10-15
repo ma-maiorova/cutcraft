@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -82,12 +83,18 @@ class ReportTests(unittest.TestCase):
     def test_old_run_without_journal(self):
         old = Path(self.tmp.name) / "old"
         shutil.copytree(ROOT / "docs/evidence/real_video/revision", old)
+        original = (old / "report.html").read_text(encoding="utf-8")
         (old / "report.html").unlink()
         render_report(old)
         page = self.html(old)
         self.assertIn("Подробный журнал (events.json) отсутствует", page)
         self.assertIn("нет данных", page)
         self.assertIn("Было → стало", page)
+        # Кадры — из снимка каталога этого прогона, те же, что в исходном отчёте, а не из нынешнего data/.
+        frames = re.findall(r'<img src="data:[^;]+;base64,([^"]+)"', page)
+        self.assertEqual(len(frames), 4)  # s1 — два кадра, s5, s8
+        self.assertTrue(all(frame in original for frame in frames))
+        self.assertNotIn("Кадр недоступен", page)
 
     def rerender_as_old_run(self, change_catalog=None):
         """Перестроить отчёт так, будто запуск сделан до появления catalog_path в input.json."""

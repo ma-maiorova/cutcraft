@@ -24,7 +24,8 @@ STEPS = [("input", None, "Вход и каталог"), ("plan", 0, "Монта�
          ("review", 1, "Повторная проверка"), ("finish", None, "Результат")]
 STEP_ACTORS = {"input": "code", "plan": "planner", "plan_check": "code", "review": "reviewer",
                "revise": "planner", "revision_check": "code", "finish": "code"}
-CATALOG_GUESSES = ("data/catalog.json", "examples/catalog.json")  # где лежали каталоги до появления catalog_path
+# Где лежали каталоги до появления catalog_path; последний — снимок, на котором записаны прогоны docs/evidence/real_video.
+CATALOG_GUESSES = ("data/catalog.json", "examples/catalog.json", "docs/evidence/real_video/catalog_1a8be59/catalog.json")
 STEP_OUTPUTS = {("input", None): ["input.json"], ("plan_check", 0): ["plan_0.json"], ("review", 0): ["review_0.json"],
                 ("revision_check", 1): ["plan_1.json"], ("review", 1): ["review_1.json"]}
 esc = lambda v: html.escape(str(v))
