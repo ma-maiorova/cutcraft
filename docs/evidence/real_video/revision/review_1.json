@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "items": [
+    {
+      "scene_id": "scene_1",
+      "decision": "accept",
+      "issue": "",
+      "evidence": "",
+      "requested_change": ""
+    },
+    {
+      "scene_id": "scene_2",
+      "decision": "accept",
+      "issue": "",
+      "evidence": "",
+      "requested_change": ""
+    },
+    {
+      "scene_id": "scene_3",
+      "decision": "accept",
+      "issue": "",
+      "evidence": "",
+      "requested_change": ""
+    }
+  ]
+}

@@ -93,3 +93,7 @@ python3 main.py --catalog docs/evidence/reviewer/cases/catalog.json --task "Об
 python3 scripts/check_reviewer_live.py          # 3 запроса
 python3 scripts/check_revision_live.py          # 3 запроса; ожидается accepted
 ```
+
+## Что изменилось позже
+
+Результаты выше получены на `dots-3-note-preview:free` и синтетических PNG. Дальше критик работал на `nvidia/nemotron-3.5-super-vl:free` и реальном видео. Его инструкция дополнена правилами о длине заголовка и связности сцен, а `selection_reason` монтажёра ему больше не передаётся. Полный цикл на реальном видео описан в [real_video](../real_video/README.md). Контрольные случаи на новой модели и с новой инструкцией ещё не перезапускались.

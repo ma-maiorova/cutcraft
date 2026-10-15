@@ -18,7 +18,7 @@ def model_plan(task, catalog, plan=None, review=None):
         validate_plan(plan, catalog)
         validate_review(review, plan)
         payload.update({"plan": plan, "review": review})
-    result = validate_plan(chat_json(prompt, payload, schema=schema), catalog)
+    result = validate_plan(chat_json(prompt, payload, schema=schema, max_tokens=8000, reasoning={"max_tokens": 3000}), catalog)
     if plan is not None:
         validate_revision(plan, result, review, catalog)
     return result

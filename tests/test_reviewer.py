@@ -8,7 +8,7 @@ from unittest.mock import patch
 from contracts import ContractError, validate_catalog, validate_plan
 from main import resolve_frames
 from model_client import ModelError
-from reviewer import load_scene_images, review_plan, review_schema
+from reviewer import load_scene_images, review_payload, review_plan, review_schema
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from check_reviewer_live import score
@@ -133,6 +133,14 @@ class ReviewerTests(unittest.TestCase):
             run("task", ROOT / "data/catalog.json", Path(d) / "run", True)
         self.assertIsNone(calls[0])
         self.assertEqual(set(calls[1]), {"plan", "review"})
+
+    def test_planner_reasoning_hidden_from_reviewer(self):
+        catalog, plan = load("catalog.json"), load("plan_correct.json")
+        payload = review_payload("Объясни результат и ограничения", catalog, plan)
+        self.assertTrue(all("selection_reason" not in scene for scene in payload["scenes"]))
+        self.assertTrue(all("caption" in scene and "source_quote" in scene for scene in payload["scenes"]))
+        carried = review_payload("Объясни результат и ограничения", catalog, plan, {plan["scenes"][0]["scene_id"]})
+        self.assertTrue(all("selection_reason" not in scene for scene in carried["accepted_scenes"]))
 
     def test_schema_matches_contract_without_conditionals(self):
         schema = review_schema()
