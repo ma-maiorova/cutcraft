@@ -24,6 +24,8 @@ STEPS = [("input", None, "Вход и каталог"), ("plan", 0, "Монта�
          ("review", 1, "Повторная проверка"), ("finish", None, "Результат")]
 STEP_ACTORS = {"input": "code", "plan": "planner", "plan_check": "code", "review": "reviewer",
                "revise": "planner", "revision_check": "code", "finish": "code"}
+# Где лежали каталоги до появления catalog_path; последний — снимок, на котором записаны прогоны docs/evidence/real_video.
+CATALOG_GUESSES = ("data/catalog.json", "examples/catalog.json", "docs/evidence/real_video/catalog_1a8be59/catalog.json")
 STEP_OUTPUTS = {("input", None): ["input.json"], ("plan_check", 0): ["plan_0.json"], ("review", 0): ["review_0.json"],
                 ("revision_check", 1): ["plan_1.json"], ("review", 1): ["review_1.json"]}
 esc = lambda v: html.escape(str(v))
@@ -38,13 +40,23 @@ def load(run_dir, name):
 
 
 def find_frames(data, catalog):
-    """Кадры для старых запусков: по catalog_path из input.json, иначе data/catalog.json. Нет файла — None."""
-    base = (ROOT / (data or {}).get("catalog_path", "data/catalog.json")).parent.resolve()
+    """Кадры при перестройке отчёта. Каталог ищем по catalog_path из input.json, у старых запусков — среди
+    CATALOG_GUESSES. Кадр берём, только если его сегмент в найденном каталоге совпадает с сохранённым в input.json:
+    у разных каталогов совпадают имена файлов (frames/s1.jpg), и без сверки отчёт показал бы кадр другого сегмента."""
+    sources = []
+    for name in [data["catalog_path"]] if (data or {}).get("catalog_path") else CATALOG_GUESSES:
+        path = ROOT / name
+        try:
+            segments = {s["segment_id"]: s for s in json.loads(path.read_text(encoding="utf-8"))["segments"]}
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        sources.append((path.parent.resolve(), segments))
     found = {}
     for segment in catalog["segments"] if catalog else ():
+        base = next((b for b, segments in sources if segments.get(segment["segment_id"]) == segment), None)
         for name in segment["frame_paths"]:
-            path = (base / name).resolve()
-            found[name] = path if path.is_relative_to(base) and path.is_file() else None
+            path = (base / name).resolve() if base else None
+            found[name] = path if path and path.is_relative_to(base) and path.is_file() else None
     return found
 
 
@@ -63,8 +75,9 @@ def reconstruct(files):
         add("review", 0, "done")
         decisions = {i["decision"] for i in files["review_0"]["items"]}
         if not files["plan_1"] and (decisions == {"accept"} or "needs_human_review" in decisions):
+            reason = "Все сцены приняты с первой проверки" if decisions == {"accept"} else "Проверяющий передал план человеку"
             for stage, iteration in (("revise", 1), ("revision_check", 1), ("review", 1)):
-                add(stage, iteration, "skipped", "Доработка не требовалась по решению проверяющего")
+                add(stage, iteration, "skipped", reason)
     if files["plan_1"]:
         add("revise", 1, "done")
         events[-1]["outputs"] = ["plan_1.json"]
@@ -89,7 +102,7 @@ def summary(stage, iteration, files):
         return "Черновик плана монтажёра", "сегменты существуют, границы, 20–30 с, дословные цитаты"
     if stage == "review":
         return ("Сцены с транскриптом своих фрагментов, неиспользованные фрагменты и кадры; обоснование монтажёра скрыто",
-                decisions_line(review))
+                decisions_line(iteration, review))
     if stage == "revise":
         return "Свой план и замечания проверяющего (plan_0.json, review_0.json)", changed_line(files)
     if stage == "revision_check":
@@ -105,12 +118,24 @@ def scenes_line(plan):
     return f"{len(plan['scenes'])} сцены, {total:.1f} с"
 
 
-def decisions_line(review):
+def review_groups(n, review):
+    """Сцены проверки n по тому, что с ними сделал оркестратор: принятые и непустые группы остальных.
+    На доработку уходят только замечания первой проверки и только если ни одну сцену не передали человеку:
+    на needs_human_review main.py останавливается, а после повторной проверки доработок больше нет."""
+    items = review["items"]
+    accepted = [i["scene_id"] for i in items if i["decision"] == "accept"]
+    human = [i["scene_id"] for i in items if i["decision"] == "needs_human_review"]
+    fix = [i["scene_id"] for i in items if i["decision"] not in ("accept", "needs_human_review")]
+    fix_label = ("замечания остались после доработки" if n == 1 else
+                 "замечания без доработки, план передан человеку" if human else "отправлены на доработку")
+    return accepted, [(label, ids) for label, ids in ((fix_label, fix), ("переданы человеку", human)) if ids]
+
+
+def decisions_line(n, review):
     if not review:
         return "нет данных"
-    sent = [i["scene_id"] for i in review["items"] if i["decision"] != "accept"]
-    accepted = len(review["items"]) - len(sent)
-    return f"принято {accepted} из {len(review['items'])}" + (f"; на доработку: {', '.join(sent)}" if sent else "")
+    accepted, others = review_groups(n, review)
+    return "; ".join([f"принято {len(accepted)} из {len(review['items'])}"] + [f"{label}: {', '.join(ids)}" for label, ids in others])
 
 
 def changed_line(files):
@@ -123,9 +148,9 @@ def changed_line(files):
 
 
 def render_steps(events, files, demo=False):
-    by_key = {}
-    for event in events:
-        by_key.setdefault((event["stage"], event.get("iteration")), event)
+    # Действует последнее событие этапа: finish записан как done до построения отчёта,
+    # и если отчёт не построился, следом идёт finish/error.
+    by_key = {(event["stage"], event.get("iteration")): event for event in events}
     rows = []
     for stage, iteration, title in STEPS:
         event = by_key.get((stage, iteration))
@@ -154,10 +179,9 @@ def render_reviews(files):
         rows = "".join(f'<tr><td>{esc(i["scene_id"])}</td><td><span class="badge {"done" if i["decision"] == "accept" else "error"}">{esc(i["decision"])}</span></td>'
                        f'<td>{esc(i["issue"]) or "—"}</td><td>{esc(i["evidence"]) or "—"}</td><td>{esc(i["requested_change"]) or "—"}</td></tr>'
                        for i in review["items"])
-        accepted = [i["scene_id"] for i in review["items"] if i["decision"] == "accept"]
-        sent = [i["scene_id"] for i in review["items"] if i["decision"] != "accept"]
-        blocks.append(f'<h3>{title} · review_{n}.json</h3><p>Приняты: {esc(", ".join(accepted) or "—")}. '
-                      f'Отправлены на доработку: {esc(", ".join(sent) or "—")}.</p>'
+        accepted, others = review_groups(n, review)
+        groups = "".join(f" {label[0].upper()}{label[1:]}: {esc(', '.join(ids))}." for label, ids in others)
+        blocks.append(f'<h3>{title} · review_{n}.json</h3><p>Приняты: {esc(", ".join(accepted) or "—")}.{groups}</p>'
                       f'<div class="scroll"><table><tr><th>Сцена</th><th>Решение</th><th>Проблема</th><th>Свидетельство</th><th>Что изменить</th></tr>{rows}</table></div>')
     return "".join(blocks) or "<p>Нет данных: проверка не сохранена.</p>"
 
@@ -190,12 +214,13 @@ def render_storyboard(files, frames):
         return "<h2>Итоговая раскадровка</h2><p>Нет данных: план не сохранён.</p>"
     lookup = {s["segment_id"]: s for s in catalog["segments"]}
     remarks = {x["scene_id"]: x for x in (review or {}).get("items", [])}
-    cards = []
+    cards, missing = [], False
     for scene in plan["scenes"]:
         imgs = []
         for name in lookup[scene["segment_id"]]["frame_paths"]:
             f = frames.get(name)
             if f is None:
+                missing = True
                 imgs.append(f'<div class="nofile">Кадр недоступен: {esc(name)}</div>')
                 continue
             mime = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
@@ -206,7 +231,9 @@ def render_storyboard(files, frames):
                    if r else "<b>нет проверки</b>")
         cards.append(f'<article>{"".join(imgs)}<h3>{esc(scene["scene_id"])} · {esc(scene["segment_id"])} · {esc(scene["source_start"])}–{esc(scene["source_end"])} с</h3>'
                      f'<p class="caption">{esc(scene["caption"])}</p><blockquote>{esc(scene["source_quote"])}</blockquote>{verdict}</article>')
-    return f'<h2>Итоговая раскадровка · plan_{n}.json</h2><section class="cards">{"".join(cards)}</section>'
+    note = ("<p>Часть кадров не показана: каталог этого запуска не найден или с тех пор изменился, "
+            "а кадры другого каталога отчёт не подставляет.</p>" if missing else "")
+    return f'<h2>Итоговая раскадровка · plan_{n}.json</h2>{note}<section class="cards">{"".join(cards)}</section>'
 
 
 def render_outcome(files, events):
@@ -218,7 +245,9 @@ def render_outcome(files, events):
         last = files["review_1"] or files["review_0"]
         items = [i for i in (last or {}).get("items", []) if i["decision"] != "accept"]
         rows = "".join(f'<li><b>{esc(i["scene_id"])}</b> ({esc(i["decision"])}): {esc(i["issue"])}</li>' for i in items)
-        return f"<p>Автоматическая доработка исчерпана, решение за человеком. Оставшиеся замечания:</p><ul>{rows}</ul>"
+        why = ("После доработки замечания остались, а автоматический цикл ограничен одной доработкой. Решение за человеком."
+               if files["review_1"] else "Проверяющий сразу передал план человеку, автоматическая доработка не запускалась.")
+        return f"<p>{why} Оставшиеся замечания:</p><ul>{rows}</ul>"
     if state == "failed":
         # Восстановленное событие finish (без seq) лишь фиксирует ошибку, места сбоя оно не знает.
         failed = next((e for e in events if e["state"] == "error" and (e["stage"] != "finish" or "seq" in e)), None)

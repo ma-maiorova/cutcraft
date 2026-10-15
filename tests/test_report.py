@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -37,7 +38,7 @@ class ReportTests(unittest.TestCase):
                                             ("revise", 1, "done"), ("revision_check", 1, "done"), ("review", 1, "done"), ("finish", None, "done")])
         page = self.html()
         for text in ("review_0.json", "review_1.json", "plan_1.json", "Было → стало", "Утеряна оговорка о симуляции",
-                     "Метод доказал эффективность", "без изменений", "ДЕМО"):
+                     "Метод доказал эффективность", "без изменений", "ДЕМО", "Отправлены на доработку: scene_2."):
             self.assertIn(text, page)
         self.assertNotIn("(LLM", page)  # в демо модели не вызываются, шаги не подписаны как LLM
 
@@ -82,12 +83,97 @@ class ReportTests(unittest.TestCase):
     def test_old_run_without_journal(self):
         old = Path(self.tmp.name) / "old"
         shutil.copytree(ROOT / "docs/evidence/real_video/revision", old)
+        original = (old / "report.html").read_text(encoding="utf-8")
         (old / "report.html").unlink()
         render_report(old)
         page = self.html(old)
         self.assertIn("Подробный журнал (events.json) отсутствует", page)
         self.assertIn("нет данных", page)
         self.assertIn("Было → стало", page)
+        # Кадры — из снимка каталога этого прогона, те же, что в исходном отчёте, а не из нынешнего data/.
+        frames = re.findall(r'<img src="data:[^;]+;base64,([^"]+)"', page)
+        self.assertEqual(len(frames), 4)  # s1 — два кадра, s5, s8
+        self.assertTrue(all(frame in original for frame in frames))
+        self.assertNotIn("Кадр недоступен", page)
+
+    def rerender_as_old_run(self, change_catalog=None):
+        """Перестроить отчёт так, будто запуск сделан до появления catalog_path в input.json."""
+        data = json.loads((self.out / "input.json").read_text())
+        del data["catalog_path"]
+        if change_catalog:
+            change_catalog(data["catalog"])
+        (self.out / "input.json").write_text(json.dumps(data, ensure_ascii=False))
+        (self.out / "report.html").unlink()
+        render_report(self.out)
+        return self.html()
+
+    def test_rerender_old_demo_from_examples_keeps_frames(self):
+        run("Объясни", ROOT / "examples/catalog.json", self.out, True)
+        page = self.rerender_as_old_run()
+        self.assertEqual(page.count('<img src="data:image/svg+xml'), 3)
+        self.assertNotIn("Кадр недоступен", page)
+
+    def test_rerender_does_not_borrow_frames_of_another_catalog(self):
+        run("Объясни", CATALOG, self.out, True)
+        def another_video(catalog):  # те же segment_id и имена кадров, но другой сегмент
+            catalog["segments"][1]["transcript"] += " Другое видео."
+        page = self.rerender_as_old_run(another_video)
+        self.assertNotIn('alt="Кадр scene_2"', page)
+        self.assertIn('alt="Кадр scene_1"', page)
+        for name in json.loads(CATALOG.read_text())["segments"][1]["frame_paths"]:
+            self.assertIn(f"Кадр недоступен: {name}", page)
+        self.assertIn("Часть кадров не показана", page)
+
+    def test_report_failure_is_not_shown_as_done(self):
+        calls = []
+        def broken_once(out, frames=None):
+            calls.append(out)
+            if len(calls) == 1:
+                raise OSError("нет места на диске")
+            return render_report(out, frames)
+        with patch("main.render_report", side_effect=broken_once):
+            with self.assertRaises(OSError):
+                run("Объясни", CATALOG, self.out, True)
+        self.assertEqual(json.loads((self.out / "status.json").read_text())["status"], "failed")
+        self.assertEqual(events(self.out)[-2:], [("finish", None, "done"), ("finish", None, "error")])
+        page = self.html()
+        self.assertIn('<b>Результат</b><span class="badge error">ошибка</span>', page)
+        self.assertIn("Место сбоя: <b>Результат</b>", page)
+
+    def test_immediate_handover_is_not_exhausted_revision(self):
+        def to_human(task, catalog, plan, frames, **kwargs):
+            review = accept_all(task, catalog, plan, frames)
+            review["items"][0].update(decision="needs_human_review", issue="Кадр не про задание",
+                                      evidence="На кадре заставка", requested_change="Решить человеку")
+            review["items"][1].update(decision="revise_caption", issue="Чужой факт", evidence="Цитата", requested_change="Убрать")
+            return review
+        with patch("main.review_plan", side_effect=to_human), patch("main.revise_plan") as revise:
+            self.assertEqual(run("Объясни", CATALOG, self.out, True), "needs_human_review")
+        revise.assert_not_called()
+        page = self.html()
+        self.assertIn("Проверяющий сразу передал план человеку", page)
+        self.assertNotIn("ограничен одной доработкой", page)
+        # Доработка не запускалась: ни одна сцена не подписана как отправленная на доработку.
+        self.assertNotIn("отправлены на доработку", page.lower())
+        self.assertIn("Замечания без доработки, план передан человеку: scene_2. Переданы человеку: scene_1.", page)
+        self.assertIn("замечания без доработки, план передан человеку: scene_2; переданы человеку: scene_1", page)
+        (self.out / "events.json").unlink()  # старый запуск: причина пропуска восстанавливается по review_0
+        render_report(self.out)
+        self.assertIn("Проверяющий передал план человеку", self.html())
+
+    def test_handover_after_revision_explains_limit(self):
+        def reject(task, catalog, plan, frames, **kwargs):
+            review = accept_all(task, catalog, plan, frames)
+            for item in review["items"]:
+                item.update(decision="revise_caption", issue="Чужой факт", evidence="Цитата", requested_change="Убрать")
+            return review
+        with patch("main.review_plan", side_effect=reject):
+            self.assertEqual(run("Объясни", CATALOG, self.out, True), "needs_human_review")
+        page = self.html()
+        self.assertIn("ограничен одной доработкой", page)
+        self.assertNotIn("сразу передал", page)
+        self.assertIn("Отправлены на доработку: scene_1, scene_2, scene_3.", page)
+        self.assertIn("Замечания остались после доработки: scene_1, scene_2, scene_3.", page)
 
     def test_user_text_is_escaped(self):
         run("<script>alert(1)</script>", CATALOG, self.out, True)
