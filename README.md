@@ -8,7 +8,7 @@ CutCraft делает план короткого ролика из длинно
 - [Контракты 1.0](docs/CONTRACTS.md), [JSON Schema](schemas/), [архитектурные решения](docs/adr/README.md).
 - [Источник данных](data/SOURCE.md) и [контрольные примеры](examples/).
 - Результаты проверок: [монтажёр](docs/evidence/planner/README.md), [проверяющий](docs/evidence/reviewer/README.md), [полный цикл на реальном видео](docs/evidence/real_video/README.md).
-- [Инструкции по модулям](blocks/) и [страница истории запуска](docs/RUN_HISTORY_UI.md) (ещё не сделана).
+- [Инструкции по модулям](blocks/) и [страница истории запуска](docs/RUN_HISTORY_UI.md).
 
 ## Состояние на 15 октября
 
@@ -104,7 +104,7 @@ main.py
   → review_plan(task, catalog, plan, frames)   проверяющий, видит кадры
   → revise_plan(...) при замечаниях            монтажёр
   → validate_revision, повторная проверка      код и проверяющий
-  → history.json, status.json, report.html     код
+  → events.json по ходу, history.json, status.json, report.html   код
 ```
 
 | Модуль | Что делает |
@@ -125,7 +125,7 @@ main.py
 
 Каталог описывает фрагменты одного видео: `segment_id`, `start`, `end`, `transcript`, `frame_paths`. План — ровно три сцены на 20–30 секунд, у каждой заголовок и дословная цитата. Проверка — одно решение на сцену. Подробности в [контрактах](docs/CONTRACTS.md).
 
-Каждый запуск пишет в свою папку `output/`: `input.json`, `plan_0.json`, `review_0.json`, при исправлении `plan_1.json` и `review_1.json`, затем `history.json`, `status.json`, `report.html`. Статусы: `demo_accepted`, `accepted`, `needs_human_review`, `failed`.
+Каждый запуск пишет в свою папку `output/`: `input.json`, `plan_0.json`, `review_0.json`, при исправлении `plan_1.json` и `review_1.json`, затем `history.json`, `status.json`, `report.html`. По ходу запуска пишется журнал `events.json`: шаги, исполнители, состояния и место сбоя. `report.html` показывает историю шагов, решения проверяющего, сравнение «было → стало» и итоговую раскадровку. Отчёт по старой папке перестраивается командой `python3 render.py output/<время> --out файл.html`. Статусы: `demo_accepted`, `accepted`, `needs_human_review`, `failed`.
 
 ## Проверка
 
@@ -134,7 +134,7 @@ python3 -m unittest discover -s tests -v
 python3 main.py --demo
 ```
 
-Проходят 39 тестов, включая демо на реальном каталоге. Перед PR используйте [skill проверки](.agents/skills/cutcraft-pr-preflight/SKILL.md): в Codex он вызывается как `$cutcraft-pr-preflight`, другому агенту SKILL.md нужно открыть явно.
+Проходят 46 тестов, включая демо на реальном каталоге. Перед PR используйте [skill проверки](.agents/skills/cutcraft-pr-preflight/SKILL.md): в Codex он вызывается как `$cutcraft-pr-preflight`, другому агенту SKILL.md нужно открыть явно.
 
 ## Команда
 
