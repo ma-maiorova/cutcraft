@@ -42,7 +42,7 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(mock.call_count, 2)
 
     def test_live_not_silently_demo(self):
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory() as d, patch("main.build_plan", return_value=self.plan):
             out = Path(d)/"run"
             with self.assertRaises(NotImplementedError):
                 run("test", ROOT / "data/catalog.json", out, False)

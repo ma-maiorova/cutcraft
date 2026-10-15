@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "items": [
+    {
+      "scene_id": "scene1",
+      "decision": "revise_caption",
+      "issue": "Подпись содержит неподтверждённое утверждение",
+      "evidence": "Метод пока проверили только на симуляции.",
+      "requested_change": "Замени подпись точным текстом source_quote этой сцены; остальные сцены сохрани полностью."
+    },
+    {
+      "scene_id": "scene2",
+      "decision": "accept",
+      "issue": "",
+      "evidence": "",
+      "requested_change": ""
+    },
+    {
+      "scene_id": "scene3",
+      "decision": "accept",
+      "issue": "",
+      "evidence": "",
+      "requested_change": ""
+    }
+  ]
+}
