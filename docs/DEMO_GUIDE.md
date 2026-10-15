@@ -68,7 +68,6 @@ python3 scripts/demo.py --demo
 После сборки образа по README можно подготовить отчёты и запустить цикл без локального Python:
 
 ```bash
-mkdir -p output
 docker build -t cutcraft:local .
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/output:/app/output" cutcraft:local python scripts/demo.py
 # Только после заполнения .env — новый реальный запуск:

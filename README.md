@@ -34,10 +34,11 @@ cd cutcraft
 Нужен запущенный Docker. Из корня репозитория выполнить:
 
 ```bash
-mkdir -p output
 docker build -t cutcraft:local .
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/output:/app/output" cutcraft:local
 ```
+
+Папка output создаётся автоматически. При стандартном запуске короткий entrypoint настраивает права только на саму папку output, затем запускает приложение от UID/GID 1000 без root. На Linux для своего пользователя можно задать `CUTCRAFT_UID=$(id -u) CUTCRAFT_GID=$(id -g)` перед командой Compose.
 
 Это фиксированное демо без ключа. После завершения открыть `output/<время>/report.html` на своём компьютере. Путь `/app/output/…` в сообщении контейнера соответствует локальному `output/…`; сервер и опубликованные порты не нужны.
 
@@ -62,16 +63,15 @@ docker run --rm --env-file .env --user "$(id -u):$(id -g)" -v "$PWD/output:/app/
 Compose описывает тот же один контейнер. Роли — функции одного процесса, а не отдельные сетевые сервисы ([ADR-0005](docs/adr/0005-single-container.md)).
 
 ```bash
-mkdir -p output
 docker compose build
-CUTCRAFT_UID=$(id -u) CUTCRAFT_GID=$(id -g) docker compose run --rm app
-CUTCRAFT_UID=$(id -u) CUTCRAFT_GID=$(id -g) docker compose run --rm app python scripts/demo.py
+docker compose run --rm app
+docker compose run --rm app python scripts/demo.py
 ```
 
 Живой запуск после заполнения локального `.env`:
 
 ```bash
-CUTCRAFT_UID=$(id -u) CUTCRAFT_GID=$(id -g) docker compose -f compose.yaml -f compose.live.yaml run --rm app
+docker compose -f compose.yaml -f compose.live.yaml run --rm app
 ```
 
 При Colima проект и папка output должны находиться в каталоге, доступном виртуальной машине (обычно домашний каталог). Для другого пути можно задать `CUTCRAFT_OUTPUT=/абсолютный/путь`; он должен быть доступен на запись пользователю контейнера. Не используйте `/private/tmp` для bind mount, если он не расшарен с Colima.

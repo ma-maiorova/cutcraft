@@ -11,5 +11,5 @@ COPY data/ data/
 COPY scripts/ scripts/
 COPY tests/ tests/
 COPY docs/ docs/
-USER cutcraft
+ENTRYPOINT ["python", "scripts/container_entrypoint.py"]
 CMD ["python", "main.py", "--demo"]

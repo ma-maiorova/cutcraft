@@ -2,7 +2,9 @@ services:
   app:
     build: .
     image: cutcraft:local
-    user: "${CUTCRAFT_UID:-1000}:${CUTCRAFT_GID:-1000}"
+    environment:
+      CUTCRAFT_UID: "${CUTCRAFT_UID:-1000}"
+      CUTCRAFT_GID: "${CUTCRAFT_GID:-1000}"
     volumes:
       - ${CUTCRAFT_OUTPUT:-./output}:/app/output
     command: ["python", "main.py", "--demo"]
