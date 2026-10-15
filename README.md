@@ -31,7 +31,7 @@ cd cutcraft
 
 ## Docker: один контейнер
 
-Нужен запущенный Docker. Из корня репозитория выполнить:
+Нужен запущенный Docker Engine и Compose. На macOS можно использовать Docker Desktop. Из корня репозитория выполнить:
 
 ```bash
 docker build -t cutcraft:local .
@@ -74,7 +74,7 @@ docker compose run --rm app python scripts/demo.py
 docker compose -f compose.yaml -f compose.live.yaml run --rm app
 ```
 
-При Colima проект и папка output должны находиться в каталоге, доступном виртуальной машине (обычно домашний каталог). Для другого пути можно задать `CUTCRAFT_OUTPUT=/абсолютный/путь`; он должен быть доступен на запись пользователю контейнера. Не используйте `/private/tmp` для bind mount, если он не расшарен с Colima.
+Результаты сохраняются в локальной папке `output/`. Для другого пути можно задать `CUTCRAFT_OUTPUT=/абсолютный/путь`; Docker должен иметь доступ к этой папке.
 
 Если Compose установлен отдельной командой `docker-compose`, использовать её вместо `docker compose` во всех командах. Для одноразового CLI используем run --rm; сервисы, база и команда up здесь не требуются. Проверка тестов внутри образа:
 
