@@ -39,6 +39,7 @@ class ReportTests(unittest.TestCase):
         for text in ("review_0.json", "review_1.json", "plan_1.json", "Было → стало", "Утеряна оговорка о симуляции",
                      "Метод доказал эффективность", "без изменений", "ДЕМО"):
             self.assertIn(text, page)
+        self.assertNotIn("(LLM", page)  # в демо модели не вызываются, шаги не подписаны как LLM
 
     def test_accepted_first_time_skips_revision(self):
         with patch("main.review_plan", side_effect=accept_all):
@@ -69,6 +70,14 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Место сбоя: <b>Монтажёр исправляет замечания</b>", page)
         self.assertIn("429 upstream", page)
         self.assertIn("review_0.json", page)
+
+    def test_live_failure_before_first_answer(self):
+        with patch("main.build_plan", side_effect=ModelError("Заполни OPENROUTER_API_KEY")):
+            with self.assertRaises(ModelError):
+                run("Объясни", CATALOG, self.out, False)
+        page = self.html()
+        self.assertIn("Место сбоя: <b>Монтажёр составляет план</b>", page)
+        self.assertNotIn("ответы получены", page)
 
     def test_old_run_without_journal(self):
         old = Path(self.tmp.name) / "old"

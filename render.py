@@ -12,6 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 ACTORS = {"code": "Код оркестратора", "planner": "Монтажёр (LLM)", "reviewer": "Проверяющий (LLM с кадрами)"}
+DEMO_ACTORS = {**ACTORS, "planner": "Монтажёр (демо: фиксированный ответ, без LLM)",
+               "reviewer": "Проверяющий (демо: фиксированный ответ, без LLM)"}
 STATES = {"done": "выполнено", "skipped": "пропущено", "error": "ошибка", None: "нет данных"}
 STATUSES = {"accepted": "план принят проверяющим", "demo_accepted": "план принят (демо)",
             "needs_human_review": "нужна проверка человеком", "failed": "запуск завершился ошибкой"}
@@ -120,7 +122,7 @@ def changed_line(files):
     return "изменены: " + ", ".join(changed) if changed else "изменений нет"
 
 
-def render_steps(events, files):
+def render_steps(events, files, demo=False):
     by_key = {}
     for event in events:
         by_key.setdefault((event["stage"], event.get("iteration")), event)
@@ -138,7 +140,7 @@ def render_steps(events, files):
                         for n in artifacts)
         rows.append(f'<li class="step {esc(state or "none")}"><div class="head"><b>{esc(title)}</b>'
                     f'<span class="badge {esc(state or "none")}">{esc(STATES[state])}</span></div>'
-                    f'<div class="who">{esc(ACTORS[STEP_ACTORS[stage]])}</div>'
+                    f'<div class="who">{esc((DEMO_ACTORS if demo else ACTORS)[STEP_ACTORS[stage]])}</div>'
                     f'<p><span class="k">Вход:</span> {esc(given)}</p><p><span class="k">Результат:</span> {esc(result)}</p>{dumps}</li>')
     return f'<ol class="steps">{"".join(rows)}</ol>'
 
@@ -242,9 +244,10 @@ def render_report(run_dir, frames=None, path=None):
     if demo:
         notes.append("ДЕМО: ответы монтажёра и проверяющего зашиты в код, ошибка в заголовке внесена специально. LLM не вызывались, это показ цикла, а не работы моделей.")
     elif data.get("mode") == "live":
+        # Не утверждаем, что модели ответили: запуск мог упасть до первого ответа.
         used = data.get("models") or {}
-        notes.append("Живой запуск: ответы получены от моделей OpenRouter."
-                     + (f" Монтажёр: {used.get('planner')}; проверяющий: {used.get('reviewer')}." if used else ""))
+        names = "; ".join(f"{role}: {used[key]}" for role, key in (("монтажёр", "planner"), ("проверяющий", "reviewer")) if used.get(key))
+        notes.append("Живой запуск: роли выполняют модели OpenRouter" + (f" ({names})" if names else "") + ".")
     if catalog:
         notes.append("Кадры и транскрипт — из настоящего видео." if catalog["assets_are_real"]
                      else "Материалы условные; это не стоп-кадры из видео.")
@@ -256,7 +259,7 @@ def render_report(run_dir, frames=None, path=None):
             f'<dt>Режим</dt><dd>{"демо" if demo else esc(data.get("mode", "нет данных"))}</dd>'
             f'<dt>Статус</dt><dd><b>{esc(status or "нет данных")}</b> — {esc(STATUSES.get(status, "нет данных"))}</dd>'
             f'<dt>Время</dt><dd>{esc((files["status"] or {}).get("seconds", "нет данных"))} с на весь запуск</dd></dl>'
-            f'<h2>Шаги</h2>{render_steps(events, files)}<h2>Решения проверяющего</h2>{render_reviews(files)}'
+            f'<h2>Шаги</h2>{render_steps(events, files, demo)}<h2>Решения проверяющего</h2>{render_reviews(files)}'
             f'{render_diff(files)}{render_storyboard(files, frames)}<h2>Итог</h2>{render_outcome(files, events)}')
     (Path(path) if path else run_dir / "report.html").write_text(f'<!doctype html><html lang="ru"><meta charset="utf-8">'
         f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>CutCraft</title><style>{CSS}</style><body>{body}</body></html>',
