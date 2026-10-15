@@ -39,3 +39,6 @@ __pycache__/
 output/
 .idea/
 *.iml
+
+# Local agent instructions
+/AGENTS.local.md
