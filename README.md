@@ -134,7 +134,7 @@ python3 -m unittest discover -s tests -v
 python3 main.py --demo
 ```
 
-Проходят 49 тестов, включая демо на реальном каталоге. Перед PR используйте [skill проверки](.agents/skills/cutcraft-pr-preflight/SKILL.md): в Codex он вызывается как `$cutcraft-pr-preflight`, другому агенту SKILL.md нужно открыть явно.
+Проходят 54 теста, включая демо на реальном каталоге. Перед PR используйте [skill проверки](.agents/skills/cutcraft-pr-preflight/SKILL.md): в Codex он вызывается как `$cutcraft-pr-preflight`, другому агенту SKILL.md нужно открыть явно.
 
 ## Команда
 
