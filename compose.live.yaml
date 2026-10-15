@@ -1,0 +1,6 @@
+# Explicit opt-in: .env is passed at runtime, never during build.
+services:
+  app:
+    env_file:
+      - .env
+    command: ["python", "scripts/demo.py", "--live"]

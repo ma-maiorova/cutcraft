@@ -62,3 +62,17 @@ python3 scripts/demo.py --demo
 - Если подготовлено превью MP4, показать как дополнение после раскадровки; генерация видео не нужна в критическом пути демонстрации.
 
 Описание проекта и архитектуры — в [PROJECT_PROPOSAL.md](PROJECT_PROPOSAL.md). Личные тексты выступления и подготовка к вопросам хранятся отдельно от репозитория.
+
+## Тот же показ через Docker
+
+После сборки образа по README можно подготовить отчёты и запустить цикл без локального Python:
+
+```bash
+mkdir -p output
+docker build -t cutcraft:local .
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/output:/app/output" cutcraft:local python scripts/demo.py
+# Только после заполнения .env — новый реальный запуск:
+docker run --rm --env-file .env --user "$(id -u):$(id -g)" -v "$PWD/output:/app/output" cutcraft:local python scripts/demo.py --live
+```
+
+Ссылки /app/output внутри контейнера соответствуют output на компьютере. Открывать HTML нужно из локальной папки. Интерфейс и порядок показа те же; контейнер — упаковка приложения, а не дополнительный агент.
