@@ -1,0 +1,32 @@
+{
+  "scenes": [
+    {
+      "caption": "Researchers propose a new method for comparing techniques.",
+      "scene_id": "scene1",
+      "segment_id": "s1",
+      "selection_reason": "Introduces the main idea of the video.",
+      "source_end": 8,
+      "source_quote": "Исследователи предложили новый способ сравнения методов.",
+      "source_start": 0
+    },
+    {
+      "caption": "Two approaches are compared on identical data.",
+      "scene_id": "scene2",
+      "segment_id": "s4",
+      "selection_reason": "Shows the experimental comparison.",
+      "source_end": 44,
+      "source_quote": "В эксперименте сравнили два подхода на одинаковых данных.",
+      "source_start": 36
+    },
+    {
+      "caption": "Authors describe limitations and possible error sources.",
+      "scene_id": "scene3",
+      "segment_id": "s5",
+      "selection_reason": "Highlights limitations, relevant to explaining results.",
+      "source_end": 56,
+      "source_quote": "Авторы описали ограничения и возможные источники ошибок.",
+      "source_start": 48
+    }
+  ],
+  "schema_version": "1.0"
+}

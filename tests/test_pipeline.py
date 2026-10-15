@@ -7,6 +7,7 @@ from unittest.mock import patch
 from contracts import ContractError, validate_catalog, validate_plan, validate_review
 from planner import build_plan
 from main import run, ROOT
+from model_client import ModelError
 
 class PipelineTests(unittest.TestCase):
     def setUp(self):
@@ -42,10 +43,13 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(mock.call_count, 2)
 
     def test_live_not_silently_demo(self):
-        with tempfile.TemporaryDirectory() as d, patch("main.build_plan", return_value=self.plan):
+        # Модель недоступна: live-режим должен завершиться failed, а не подменить ответ демо. Сеть не используется.
+        with tempfile.TemporaryDirectory() as d, patch("main.build_plan", return_value=self.plan), \
+             patch("reviewer.chat_json", side_effect=ModelError("нет модели")) as api:
             out = Path(d)/"run"
-            with self.assertRaises(NotImplementedError):
+            with self.assertRaises(ModelError):
                 run("test", ROOT / "data/catalog.json", out, False)
+            api.assert_called_once()
             self.assertEqual(json.loads((out/"status.json").read_text())["status"], "failed")
 
     def test_quote_and_duration(self):

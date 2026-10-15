@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "decision": "revise_caption",
+      "evidence": "segment_transcript: \"Метод пока проверили только на симуляции.\" caption: \"Метод доказал свою эффективность в реальных условиях.\" На кадре надпись \"Симуляция\" и \"SIMULATION RUN #42\", что прямо указывает на симуляционное тестирование, а не на реальные условия.",
+      "issue": "Подпись противоречит транскрипту и удаляет ключевую оговорку «пока» и «только на симуляции», утверждая успешную проверку в реальных условиях.",
+      "requested_change": "Заменить caption на: \"Метод пока проверили только на симуляции.\"",
+      "scene_id": "scene_1"
+    },
+    {
+      "decision": "accept",
+      "evidence": "",
+      "issue": "",
+      "requested_change": "",
+      "scene_id": "scene_2"
+    },
+    {
+      "decision": "accept",
+      "evidence": "",
+      "issue": "",
+      "requested_change": "",
+      "scene_id": "scene_3"
+    }
+  ],
+  "schema_version": "1.0"
+}

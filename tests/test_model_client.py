@@ -57,3 +57,44 @@ class ModelClientTests(unittest.TestCase):
             with self.assertRaises(ModelError):
                 chat_json("system", {})
             self.assertEqual(request.call_count, 1)
+
+
+class DeadlineTests(unittest.TestCase):
+    def test_keepalive_stream_cannot_exceed_total_timeout(self):
+        from model_client import read_until
+        import time as _time
+
+        class Endless:
+            def read(self, n):
+                return b" "  # keepalive-пробелы без конца
+
+        with self.assertRaises(TimeoutError):
+            read_until(Endless(), _time.monotonic() + 0.05)
+
+    def test_reads_full_body(self):
+        from model_client import read_until
+        import io, time as _time
+        self.assertEqual(read_until(io.BytesIO(b'{"a": 1}'), _time.monotonic() + 5), b'{"a": 1}')
+
+
+class ProviderReasonTests(unittest.TestCase):
+    def test_429_reason_is_shown(self):
+        import io, urllib.error
+        from model_client import provider_reason
+        body = b'{"error":{"message":"Rate limit exceeded: free-models-per-day","code":429}}'
+        exc = urllib.error.HTTPError("u", 429, "Too Many Requests", {}, io.BytesIO(body))
+        self.assertIn("free-models-per-day", provider_reason(exc))
+        self.assertEqual(provider_reason(urllib.error.HTTPError("u", 429, "x", {}, io.BytesIO(b"not json"))), "")
+
+
+class TruncationTests(unittest.TestCase):
+    def test_length_keeps_partial_and_usage(self):
+        model = {"id": "test:free", "pricing": {"prompt": "0", "completion": "0"}}
+        cut = {"choices": [{"finish_reason": "length", "message": {"content": '{"schema'}}],
+               "usage": {"completion_tokens": 10, "completion_tokens_details": {"reasoning_tokens": 9}}}
+        with patch("model_client.settings", return_value=("example", "test:free", 10)), \
+             patch("model_client.request_json", side_effect=[{"data": [model]}, cut]):
+            with self.assertRaises(ModelError) as ctx:
+                chat_json("system", {}, max_tokens=10)
+        self.assertEqual(ctx.exception.partial, '{"schema')
+        self.assertIn("рассуждения: 9", str(ctx.exception))

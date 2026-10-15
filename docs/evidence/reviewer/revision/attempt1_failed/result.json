@@ -1,0 +1,17 @@
+{
+  "status": "failed",
+  "error_type": "ContractError",
+  "message": "Цитата отсутствует в транскрипте сегмента",
+  "text_model": "dots-studio/dots-3-note-preview:free",
+  "vision_model": "dots-studio/dots-3-note-preview:free",
+  "utc": "2026-10-15T16:21:06.296279+00:00",
+  "seconds": 101.1,
+  "model_calls": 1,
+  "steps": [
+    {
+      "step": "критик проверяет план с дефектом",
+      "seconds": 89.47
+    }
+  ],
+  "start_plan": "docs/evidence/reviewer/cases/plan_lost_caveat.json (controlled defect)"
+}
