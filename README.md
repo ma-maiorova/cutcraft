@@ -153,4 +153,4 @@ python3 main.py --demo
 
 ## Показ проекта
 
-[Описание проекта и сценарий выступления](docs/DEMO_GUIDE.md). Подготовить сохранённые реальные отчёты без API: `python3 scripts/demo.py`. Новый запуск с резервными отчётами: `python3 scripts/demo.py --live`; техническое демо без моделей: `python3 scripts/demo.py --demo`.
+[Команды и порядок показа UI](docs/DEMO_GUIDE.md). Подготовить сохранённые реальные отчёты без API: `python3 scripts/demo.py`. Новый запуск с резервными отчётами: `python3 scripts/demo.py --live`; техническое демо без моделей: `python3 scripts/demo.py --demo`.
