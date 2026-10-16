@@ -1,6 +1,7 @@
-"""Presentation launcher: saved evidence by default, API only with --live."""
+"""Запуск CutCraft для показа. Результат — одна папка output/<timestamp>: план (report.html) и видео (short.mp4)."""
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,28 +11,36 @@ sys.path.insert(0, str(ROOT))
 from contracts import validate_catalog, validate_task
 from main import resolve_frames, run
 from model_client import settings
-from render import render_report
+sys.path.insert(0, str(ROOT / "scripts"))
+from render_short import RenderError, render as render_short
 
 TASK = "Объясни за 30 секунд, почему учёные уверены, что был Большой взрыв"
 
 
-def prepare_saved(destination):
-    """Re-render recorded live runs without modifying evidence or calling models."""
-    destination.mkdir(parents=True, exist_ok=True)
-    reports = []
-    for case in ("final", "revision"):
-        source = ROOT / "docs/evidence/real_video" / case
-        if not (source / "input.json").is_file() or not (source / "status.json").is_file():
-            raise ValueError(f"Нет сохранённого прогона: {case}")
-        target = destination / f"saved-{case}.html"
-        render_report(source, path=target)
-        # Explicit provenance stays visible even though the underlying run was live.
-        text = target.read_text(encoding="utf-8")
-        marker = ('<aside><strong>СОХРАНЁННЫЙ РЕАЛЬНЫЙ ПРОГОН, НЕ ТЕКУЩИЙ ЗАПУСК.</strong> '
-                  'Ответы получены ранее; сейчас API не вызывается.</aside>')
-        target.write_text(text.replace('<h1>', marker + '<h1>', 1), encoding="utf-8")
-        reports.append(target)
-    return reports
+def default_video():
+    """Исходное видео: CUTCRAFT_VIDEO, если задан, иначе единственный (первый по имени) .mp4 в папке media/."""
+    if os.environ.get("CUTCRAFT_VIDEO"):
+        return Path(os.environ["CUTCRAFT_VIDEO"])
+    videos = sorted((ROOT / "media").glob("*.mp4"))
+    return videos[0] if videos else ROOT / "media"
+
+
+DEFAULT_VIDEO = default_video()
+
+
+def make_short(run_dir, video, out=None):
+    """Собрать shorts по итоговому плану. Сбой сборки видео не влияет на результат агентного цикла."""
+    if video is None or not video.is_file():
+        print(f"Видео не подключено ({video}): shorts не собираем, отчёт готов.", flush=True)
+        return None
+    print("Собираем shorts по итоговому плану (модели не вызываются)...", flush=True)
+    try:
+        path = render_short(run_dir, video, out=out, log=lambda m: print("  " + m, flush=True))
+    except (RenderError, OSError, ValueError, KeyError) as exc:
+        print(f"Shorts не собран: {exc}", file=sys.stderr, flush=True)
+        return None
+    print("Видео: " + path.resolve().as_uri(), flush=True)
+    return path
 
 
 def preflight(catalog_path, live=False):
@@ -51,22 +60,17 @@ def main(argv=None):
     parser.add_argument("--controlled-defect", action="store_true", help="С --live: испортить одну подпись кодом, явно пометив тест")
     parser.add_argument("--catalog", type=Path, default=ROOT / "data/catalog.json")
     parser.add_argument("--task", default=TASK)
+    parser.add_argument("--video", type=Path, default=DEFAULT_VIDEO, help="Исходное видео для сборки shorts")
+    parser.add_argument("--no-short", action="store_true", help="Не собирать shorts")
     args = parser.parse_args(argv)
     if args.controlled_defect and not args.live:
         parser.error("--controlled-defect требует --live")
-    out = ROOT / "output" / ("presentation-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
-    try:
-        saved = prepare_saved(out)
-    except (OSError, ValueError) as exc:
-        print(f"Не удалось подготовить сохранённые отчёты: {type(exc).__name__}", file=sys.stderr)
-        return 1
-    print("СОХРАНЁННЫЕ реальные прогоны; сейчас модели не вызывались:", flush=True)
-    for path in saved:
-        print(path.resolve().as_uri(), flush=True)
+    video = None if args.no_short else args.video
     if not args.live and not args.demo:
-        print("Для нового запуска: --live (API) или --demo (фиксированные ответы).")
+        print("Укажите режим: --live (реальные модели, 2–4 запроса) или --demo (фиксированные ответы, без API).")
         return 0
-    current = out / "current"
+    # Результат запуска — одна папка: план (report.html) и, после живого запуска, видео (short.mp4).
+    current = ROOT / "output" / datetime.now().strftime("%Y%m%d-%H%M%S")
     try:
         validate_task(args.task)
         count, frames = preflight(args.catalog.resolve(), live=args.live)
@@ -80,13 +84,15 @@ def main(argv=None):
             status = run(args.task, args.catalog.resolve(), current, demo=args.demo)
     except Exception as exc:
         # Do not echo arbitrary exception text or credentials in a presentation console.
-        print(f"НОВЫЙ запуск не завершён ({type(exc).__name__}). Используйте сохранённые отчёты выше.", file=sys.stderr)
+        print(f"Запуск не завершён ({type(exc).__name__}).", file=sys.stderr)
         report = current / "report.html"
         if report.is_file():
             print("Частичный отчёт: " + report.resolve().as_uri())
         return 1
-    print(f"НОВЫЙ запуск: {status}")
-    print((current / "report.html").resolve().as_uri())
+    print(f"Запуск: {status}")
+    print("План: " + (current / "report.html").resolve().as_uri())
+    if args.live and video is not None:
+        make_short(current, video)
     if args.controlled_defect:
         defect = json.loads((current / "controlled_defect.json").read_text())
         review = json.loads((current / "review_0.json").read_text())

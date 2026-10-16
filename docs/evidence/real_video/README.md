@@ -12,10 +12,10 @@
 | 2 | s2 | доказательство, на кадре схема красного смещения | Галактики разбегаются, есть красное смещение |
 | 3 | s5 | вывод | Все свидетельства сходятся в одну точку |
 
-Превью шортса по этому плану (видео в Git не хранится):
+Видео по этому плану (исходное видео в Git не хранится, его кладут в `media/`):
 
 ```bash
-python3 scripts/render_short.py --run docs/evidence/real_video/final --video shtern_big_bang.mp4 --out short.mp4
+python3 scripts/render_short.py --run docs/evidence/real_video/final --video media/<видео>.mp4 --out short.mp4
 ```
 
 ## `revision/` — пример исправления

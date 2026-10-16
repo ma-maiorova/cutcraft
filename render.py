@@ -328,7 +328,7 @@ blockquote{margin:12px 0;border-left:3px solid var(--muted);padding-left:12px}
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Перерисовать отчёт по сохранённой папке запуска (без моделей)")
-    p.add_argument("run", type=Path, help="папка запуска, например output/<время>")
+    p.add_argument("run", type=Path, help="папка запуска, например output/<timestamp>")
     p.add_argument("--out", type=Path, help="куда записать HTML (по умолчанию <папка>/report.html)")
     a = p.parse_args()
     render_report(a.run, path=a.out)
