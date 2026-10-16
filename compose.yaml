@@ -7,4 +7,6 @@ services:
       CUTCRAFT_GID: "${CUTCRAFT_GID:-1000}"
     volumes:
       - ${CUTCRAFT_OUTPUT:-./output}:/app/output
+      # Исходное видео для shorts: только чтение, в образ не копируется.
+      - ${CUTCRAFT_MEDIA:-./media}:/app/media:ro
     command: ["python", "main.py", "--demo"]

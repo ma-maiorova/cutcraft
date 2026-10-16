@@ -42,3 +42,6 @@ output/
 
 # Local agent instructions
 /AGENTS.local.md
+
+# Исходное видео для сборки shorts (не храним в Git)
+media/

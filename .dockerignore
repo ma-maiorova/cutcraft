@@ -24,3 +24,4 @@ src
 *.key
 **/*.key
 .DS_Store
+media
